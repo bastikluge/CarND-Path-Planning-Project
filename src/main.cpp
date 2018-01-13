@@ -202,7 +202,7 @@ int main() {
               y_point = (x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
 
               x_point += ref_x;
-              y_point -= ref_y;
+              y_point += ref_y;
 
               // add points to next points
               std::cout << "           ... adding (x, y) = (" << x_point << ", " << y_point << ") ...\n";
