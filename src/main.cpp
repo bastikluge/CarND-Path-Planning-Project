@@ -117,7 +117,7 @@ int main() {
             vector<double> ptsx, ptsy;
 
             // reference x, y, 
-            double ref_x(car_x), ref_y(car_y), ref_yaw(deg2rad(car_yaw));
+            double ref_x(car_x), ref_y(car_y), ref_yaw(deg2rad(car_yaw)), ref_s(car_s);
 
             // if previous size is almost empty, use the car as starting reference
             if ( prev_size < 2 )
@@ -139,6 +139,8 @@ int main() {
               double ref_x_prev = previous_path_x[prev_size-2];
               double ref_y_prev = previous_path_y[prev_size-2];
               ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev);
+              std::vector<double> sd = getFrenet(ref_x, ref_y, ref_yaw, map_waypoints_x, map_waypoints_y);
+              ref_s = sd[0];
 
               // use two points that make the path tangent to the car
               ptsx.push_back(ref_x_prev);
@@ -150,7 +152,7 @@ int main() {
             // in Frenet add evenly 30m spaced points ahead of the starting reference
             for ( int i=0; i<3; i++ )
             {
-              vector<double> next_wp = getXY(car_s+(i+1)*30, (laneIdx+0.5)*LANE_WIDTH, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              vector<double> next_wp = getXY(ref_s+(i+1)*30, (laneIdx+0.5)*LANE_WIDTH, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               ptsx.push_back(next_wp[0]);
               ptsy.push_back(next_wp[1]);
             }
