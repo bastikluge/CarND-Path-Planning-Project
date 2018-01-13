@@ -97,6 +97,8 @@ int main() {
           	// Previous path data given to the Planner (without the points that have already been passed by)
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
+            std::cout << "telemetry: (s, d) = (" << car_s << ", " << car_d << "), (x, y) = (" << car_x << ", " << car_y << ")\n";
+            std::cout << "           Previous path size: " << previous_path_x.size() << "\n";
           	// Previous path's end s and d values 
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
@@ -206,6 +208,8 @@ int main() {
               next_x_vals.push_back(x_point);
               next_y_vals.push_back(y_point);
             }
+            
+            std::cout << "           Next path size: " << next_x_vals.size() << "\n";
 
           	json msgJson;
           	msgJson["next_x"] = next_x_vals;
