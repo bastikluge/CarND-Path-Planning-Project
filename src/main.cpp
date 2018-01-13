@@ -66,6 +66,9 @@ int main() {
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
   }
+  
+  // Planned speed of vehicle
+  double planned_speed_mps(0);
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -107,7 +110,7 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"];
             
             // Configuration data for processing steps below
-            double speed_mps(car_speed), safe_dist_m(0.5*speed_mps*3.6);
+            double safe_dist_m(0.5*planned_speed_mps*3.6);
 
             // Helper data for processing steps below
             int laneIdx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
@@ -144,7 +147,7 @@ int main() {
                 {
                   std::cout << "           Car " << sensor_fusion[idxCar][SFI_ID] << " is too close!\n";
                   // @todo do something fancy
-                  //speed_mps = other_v;
+                  //planned_speed_mps = other_v;
                   too_close = true;
                   break;
                 }
@@ -154,13 +157,13 @@ int main() {
             // adjust speed
             if ( too_close )
             {
-              speed_mps -= 0.224;
+              planned_speed_mps -= 0.224;
             }
-            else if ( speed_mps < GOAL_SPEED_MPS )
+            else if ( planned_speed_mps < GOAL_SPEED_MPS )
             {
-              speed_mps += 0.224;
+              planned_speed_mps += 0.224;
             }
-            std::cout << "           Planned speed: v = " << speed_mps << "\n";
+            std::cout << "           Planned speed: v = " << planned_speed_mps << "\n";
 
             ////////////////////////////////////////////////////////////////////////
             // Smooth road with spline
@@ -241,7 +244,7 @@ int main() {
             // target_dist = nbr_points * 0.02 s * speed m/s => nbr_points
             double target_x(30.0), target_y( spline_along_road_ahead(target_x) );
             double target_dist = sqrt((target_x * target_x) + (target_y * target_y));
-            double nbr_points( target_dist / (TIME_INCREMENT_S * speed_mps) );
+            double nbr_points( target_dist / (TIME_INCREMENT_S * planned_speed_mps) );
 
             // break up points
             double x_add_on(0.0);
