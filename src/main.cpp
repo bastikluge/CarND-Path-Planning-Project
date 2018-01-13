@@ -167,7 +167,7 @@ int main() {
                 }
                 else
                 {
-                  planned_lane_idx++;
+                  planned_laneIdx++;
                 }
               }
             }
