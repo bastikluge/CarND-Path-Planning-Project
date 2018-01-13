@@ -69,8 +69,9 @@ int main() {
   
   // Planned speed of vehicle
   double planned_speed_mps(0);
+  double planned_laneIdx(1);
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &planned_speed_mps](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &planned_speed_mps, &planned_laneIdx](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -134,7 +135,7 @@ int main() {
             {
               // check if car is in my lane
               float other_d(sensor_fusion[idxCar][SFI_D]);
-              if ( (laneIdx * LANE_WIDTH_M < other_d) && (other_d <= (laneIdx+1) * LANE_WIDTH_M) )
+              if ( (planned_laneIdx * LANE_WIDTH_M < other_d) && (other_d <= (planned_laneIdx+1) * LANE_WIDTH_M) )
               {
                 double other_vx(sensor_fusion[idxCar][SFI_VX]);
                 double other_vy(sensor_fusion[idxCar][SFI_VY]);
@@ -154,10 +155,21 @@ int main() {
               }
             }
 
-            // adjust speed
+            // adjust speed and lane
             if ( too_close )
             {
               planned_speed_mps -= 0.224;
+              if ( (laneIdx == planned_laneIdx) )
+              {
+                if ( planned_laneIdx > 0 )
+                {
+                  planned_laneIdx--;
+                }
+                else
+                {
+                  planned_lane_idx++;
+                }
+              }
             }
             else if ( planned_speed_mps < GOAL_SPEED_MPS )
             {
@@ -208,7 +220,7 @@ int main() {
             // in Frenet add evenly 30m spaced points ahead of the starting reference
             for ( int i=0; i<3; i++ )
             {
-              vector<double> next_wp = getXY(ref_s+(i+1)*30, (laneIdx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              vector<double> next_wp = getXY(ref_s+(i+1)*30, (planned_laneIdx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               ptsx.push_back(next_wp[0]);
               ptsy.push_back(next_wp[1]);
             }
