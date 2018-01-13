@@ -205,6 +205,7 @@ int main() {
               y_point -= ref_y;
 
               // add points to next points
+              std::cout << "           ... adding (x, y) = (" << x_point << ", " << y_point << ") ...\n";
               next_x_vals.push_back(x_point);
               next_y_vals.push_back(y_point);
             }
