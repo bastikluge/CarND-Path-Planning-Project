@@ -97,7 +97,7 @@ int main() {
           	// Previous path data given to the Planner (without the points that have already been passed by)
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
-            std::cout << "telemetry: (s, d) = (" << car_s << ", " << car_d << "), (x, y) = (" << car_x << ", " << car_y << ")\n";
+            std::cout << "telemetry: (s, d) = (" << car_s << ", " << car_d << "), (x, y) = (" << car_x << ", " << car_y << "), v = " << car_speed << "\n";
             std::cout << "           Previous path size: " << previous_path_x.size() << "\n";
           	// Previous path's end s and d values 
           	double end_path_s = j[1]["end_path_s"];
@@ -142,9 +142,11 @@ int main() {
                 double other_check_s = other_s + prev_size*TIME_INCREMENT_S*other_v;
                 if ( (other_check_s > check_s) && (other_check_s - check_s < safe_dist_m) )
                 {
+                  std::cout << "           Car " << sensor_fusion[idxCar][SFI_ID] << " is too close!\n";
                   // @todo do something fancy
                   //speed_mps = other_v;
                   too_close = true;
+                  break;
                 }
               }
             }
@@ -158,6 +160,7 @@ int main() {
             {
               speed_mps += 0.224;
             }
+            std::cout << "           Planned speed: v = " << speed_mps << "\n";
 
             ////////////////////////////////////////////////////////////////////////
             // Smooth road with spline
@@ -215,7 +218,7 @@ int main() {
 
               ptsx[i] = (shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw));
               ptsy[i] = (shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw));
-              std::cout << "           ... spline_point[" << i << "]: (x, y) = (" << ptsx[i] << ", " << ptsy[i] << ") ...\n";
+              //std::cout << "           ... spline_point[" << i << "]: (x, y) = (" << ptsx[i] << ", " << ptsy[i] << ") ...\n";
             }
 
             // create a spline
