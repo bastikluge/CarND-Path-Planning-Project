@@ -105,12 +105,62 @@ int main() {
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
+            
+            // Configuration data for processing steps below
+            double speed_mps(car_speed), safe_dist_m(0.5*speed_mps*3.6);
+
+            // Helper data for processing steps below
+            int laneIdx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
+            for ( int i=0; i<NUMBER_OF_LANES; i++ )
+            {
+              if ( (i * LANE_WIDTH_M < car_d) && (car_d <= (i+1) * LANE_WIDTH_M) )
+              {
+                laneIdx = i;
+                break;
+              }
+            }
+            int prev_size = previous_path_x.size();
+
+            ////////////////////////////////////////////////////////////////////////
+            // Check other cars
+
+            // find ref_v to use
+            double check_s( (prev_size > 0) ? end_path_s : car_s );
+            bool too_close(false);
+            for ( int idxCar=0; idxCar<sensor_fusion.size(); idxCar++ )
+            {
+              // check if car is in my lane
+              float other_d(sensor_fusion[idxCar][SFI_D]);
+              if ( (laneIdx * LANE_WIDTH_M < other_d) && (other_d <= (laneIdx+1) * LANE_WIDTH_M) )
+              {
+                double other_vx(sensor_fusion[idxCar][SFI_VX]);
+                double other_vy(sensor_fusion[idxCar][SFI_VY]);
+                double other_s (sensor_fusion[idxCar][SFI_S]);
+                double other_v(sqrt(other_vx*other_vx + other_vy*other_vy));
+
+                // check if car is in front and in safe distance
+                double other_check_s = other_s + prev_size*TIME_INCREMENT_S*other_v;
+                if ( (other_check_s > check_s) && (other_check_s - check_s < safe_dist_m) )
+                {
+                  // @todo do something fancy
+                  //speed_mps = other_v;
+                  too_close = true;
+                }
+              }
+            }
+
+            // adjust speed
+            if ( too_close )
+            {
+              speed_mps -= 0.224;
+            }
+            else if ( speed_mps < GOAL_SPEED_MPS )
+            {
+              speed_mps += 0.224;
+            }
 
             ////////////////////////////////////////////////////////////////////////
             // Smooth road with spline
-            int laneIdx(1);
-            double speed_mph(49.5), speed_mps(speed_mph/2.24);
-            int prev_size = previous_path_x.size();
 
             // widely spaced (x, y) waypoints, evenly spaced at 30m
             // later we will interpolate these waypoints with a spline and fill it in with more points that control speed
@@ -152,7 +202,7 @@ int main() {
             // in Frenet add evenly 30m spaced points ahead of the starting reference
             for ( int i=0; i<3; i++ )
             {
-              vector<double> next_wp = getXY(ref_s+(i+1)*30, (laneIdx+0.5)*LANE_WIDTH, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              vector<double> next_wp = getXY(ref_s+(i+1)*30, (laneIdx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               ptsx.push_back(next_wp[0]);
               ptsy.push_back(next_wp[1]);
             }
@@ -173,7 +223,7 @@ int main() {
             spline_along_road_ahead.set_points(ptsx, ptsy);
 
             ////////////////////////////////////////////////////////////////////////
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          	// Define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
@@ -188,7 +238,7 @@ int main() {
             // target_dist = nbr_points * 0.02 s * speed m/s => nbr_points
             double target_x(30.0), target_y( spline_along_road_ahead(target_x) );
             double target_dist = sqrt((target_x * target_x) + (target_y * target_y));
-            double nbr_points( target_dist / (TIME_INCREMENT * speed_mps) );
+            double nbr_points( target_dist / (TIME_INCREMENT_S * speed_mps) );
 
             // break up points
             double x_add_on(0.0);
