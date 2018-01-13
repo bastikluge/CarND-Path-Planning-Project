@@ -185,7 +185,7 @@ int main() {
             }
 
             // calculate how to break up spline points so that we travel at our desired reference speed:
-            // target_dist = nbr_points * 0.2 s * speed m/s => nbr_points
+            // target_dist = nbr_points * 0.02 s * speed m/s => nbr_points
             double target_x(30.0), target_y( spline_along_road_ahead(target_x) );
             double target_dist = sqrt((target_x * target_x) + (target_y * target_y));
             double nbr_points( target_dist / (TIME_INCREMENT * speed_mps) );

@@ -7,7 +7,7 @@ extern const double MAX_S;
 // The width of one lane of the track
 extern const double LANE_WIDTH;
 
-// The time increment within the car is controlled by one sent path
+// The time increment in seconds within the car is controlled by one sent path
 extern const double TIME_INCREMENT;
 
 #endif
