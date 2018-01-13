@@ -163,6 +163,7 @@ int main() {
 
               ptsx[i] = (shift_x * cos(-ref_yaw) - shift_y * sin(-ref_yaw));
               ptsy[i] = (shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw));
+              std::cout << "           ... spline_point[" << i << "]: (x, y) = (" << ptsx[i] << ", " << ptsy[i] << ") ...\n";
             }
 
             // create a spline
