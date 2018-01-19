@@ -68,9 +68,9 @@ int main() {
   
   // Planned speed of vehicle
   double planned_speed_mps(0);
-  unsigned planned_laneIdx(1);
+  unsigned planned_lane_idx(1);
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &planned_speed_mps, &planned_laneIdx](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &planned_speed_mps, &planned_lane_idx](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -113,12 +113,12 @@ int main() {
             double safe_dist_m(0.5*planned_speed_mps*3.6);
 
             // Helper data for processing steps below
-            unsigned laneIdx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
+            unsigned lane_idx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
             for ( unsigned i=0; i<NUMBER_OF_LANES; i++ )
             {
               if ( (i * LANE_WIDTH_M < car_d) && (car_d <= (i+1) * LANE_WIDTH_M) )
               {
-                laneIdx = i;
+                lane_idx = i;
                 break;
               }
             }
@@ -127,26 +127,58 @@ int main() {
             ////////////////////////////////////////////////////////////////////////
             // Check other cars
 
-            // find ref_v to use
+            // check trajectories for safety
             double check_s( (prev_size > 0) ? end_path_s : car_s );
-            bool too_close = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m, true, planned_laneIdx, sensor_fusion);
+            bool need_lane_adjustment(false), need_speed_reduction(false);
 
-            // adjust speed and lane
-            if ( too_close )
+            // (1) check current behavior
+            if ( lane_idx == planned_lane_idx )
             {
-              planned_speed_mps -= 0.224;
-              if ( (laneIdx == planned_laneIdx) )
+              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m, true, lane_idx, sensor_fusion);
+            }
+            else
+            {
+              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,         sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, planned_lane_idx, sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  planned_lane_idx, sensor_fusion);
+            }
+
+            // (2) if current behavior is not safe, check if lane change helps
+            if ( need_lane_adjustment )
+            {
+              // collect possible (yet unchecked) alternative lanes
+              std::vector<unsigned> lane_candidate_idx;
+              if ( (0                <= int(lane_idx) - 1)
+                && (planned_lane_idx != lane_idx      - 1) )
               {
-                // @todo: Check which lane is free to change
-                if ( planned_laneIdx > 0 )
+                lane_candidate_idx.push_back(lane_idx - 1);
+              }
+              if ( (NUMBER_OF_LANES   > lane_idx + 1)
+                && (planned_lane_idx != lane_idx + 1) )
+              {
+                lane_candidate_idx.push_back(lane_idx - 1);
+              }
+
+              // evaluate alternative lane candidates
+              need_speed_reduction = true;
+              planned_lane_idx     = lane_idx;
+              for ( unsigned i=0; i<lane_candidate_idx.size(); i++ )
+              {
+                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,              sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, lane_candidate_idx[i], sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  lane_candidate_idx[i], sensor_fusion) )
                 {
-                  planned_laneIdx--;
-                }
-                else
-                {
-                  planned_laneIdx++;
+                  need_speed_reduction = false;
+                  planned_lane_idx     = lane_candidate_idx[i];
+                  break;
                 }
               }
+            }
+            
+            // (3) adjust speed if necessary or desired
+            if ( need_speed_reduction )
+            {
+              planned_speed_mps -= 0.224;
             }
             else if ( planned_speed_mps < GOAL_SPEED_MPS )
             {
@@ -197,7 +229,7 @@ int main() {
             // in Frenet add evenly 30m spaced points ahead of the starting reference
             for ( int i=0; i<3; i++ )
             {
-              vector<double> next_wp = getXY(ref_s+(i+1)*30, (planned_laneIdx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              vector<double> next_wp = getXY(ref_s+(i+1)*30, (planned_lane_idx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               ptsx.push_back(next_wp[0]);
               ptsy.push_back(next_wp[1]);
             }
