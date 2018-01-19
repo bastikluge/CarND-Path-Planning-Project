@@ -108,9 +108,6 @@ int main() {
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
-            
-            // Configuration data for processing steps below
-            double safe_dist_m(0.5*planned_speed_mps*3.6);
 
             // Helper data for processing steps below
             unsigned lane_idx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
@@ -134,13 +131,22 @@ int main() {
             // (1) check current behavior
             if ( lane_idx == planned_lane_idx )
             {
-              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m, true, lane_idx, sensor_fusion);
+              // factor 1.5 to consider lane changes early when approaching another vehicle
+              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.5, true, lane_idx, sensor_fusion);
+            }
+            else if ( std::abs(lane_idx - planned_lane_idx) == 1 )
+            {
+              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 0.5, true,  lane_idx,         sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, planned_lane_idx, sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  planned_lane_idx, sensor_fusion);
             }
             else
             {
-              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,         sensor_fusion)
-                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, planned_lane_idx, sensor_fusion)
-                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  planned_lane_idx, sensor_fusion);
+              need_lane_adjustment = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 0.5, true,  lane_idx,                      sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, (lane_idx+planned_lane_idx)/2, sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  (lane_idx+planned_lane_idx)/2, sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, planned_lane_idx,              sensor_fusion)
+                                  || !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  planned_lane_idx,              sensor_fusion);
             }
 
             // (2) if current behavior is not safe, check if lane change helps
@@ -149,6 +155,7 @@ int main() {
               // pessimistic... ;-)
               need_speed_reduction = true;
               std::vector<unsigned> lane_candidate_idx;
+              double max_safe_dist(0.0);
 
               // collect possible (yet unchecked) adjacent alternative lanes
               lane_candidate_idx.clear();
@@ -166,13 +173,17 @@ int main() {
               // evaluate alternative lane candidates
               for ( unsigned i=0; i<lane_candidate_idx.size(); i++ )
               {
-                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,              sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, lane_candidate_idx[i], sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  lane_candidate_idx[i], sensor_fusion) )
+                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 0.5, true,  lane_idx,              sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, lane_candidate_idx[i], sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  lane_candidate_idx[i], sensor_fusion) )
                 {
-                  need_speed_reduction = false;
-                  planned_lane_idx     = lane_candidate_idx[i];
-                  break;
+                  double safe_dist = getMinDistance(prev_size*TIME_INCREMENT_S, check_s, true, lane_candidate_idx[i], sensor_fusion);
+                  if ( safe_dist > max_safe_dist )
+                  {
+                    max_safe_dist        = safe_dist;
+                    need_speed_reduction = false;
+                    planned_lane_idx     = lane_candidate_idx[i];
+                  }
                 }
               }
 
@@ -192,15 +203,19 @@ int main() {
               // evaluate alternative lane candidates
               for ( unsigned i=0; i<lane_candidate_idx.size(); i++ )
               {
-                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,                           sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, lane_candidate_idx[i],              sensor_fusion)
-                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  lane_candidate_idx[i],              sensor_fusion) )
+                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 0.5, true,  lane_idx,                           sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, false, lane_candidate_idx[i],              sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, planned_speed_mps, 1.0, true,  lane_candidate_idx[i],              sensor_fusion) )
                 {
-                  need_speed_reduction = false;
-                  planned_lane_idx     = lane_candidate_idx[i];
-                  break;
+                  double safe_dist = getMinDistance(prev_size*TIME_INCREMENT_S, check_s, true, lane_candidate_idx[i], sensor_fusion);
+                  if ( safe_dist > max_safe_dist )
+                  {
+                    max_safe_dist        = safe_dist;
+                    need_speed_reduction = false;
+                    planned_lane_idx     = lane_candidate_idx[i];
+                  }
                 }
               }
             }
