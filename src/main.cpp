@@ -156,7 +156,7 @@ int main() {
               if ( (NUMBER_OF_LANES   > lane_idx + 1)
                 && (planned_lane_idx != lane_idx + 1) )
               {
-                lane_candidate_idx.push_back(lane_idx - 1);
+                lane_candidate_idx.push_back(lane_idx + 1);
               }
 
               // evaluate alternative lane candidates
