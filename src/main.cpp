@@ -221,13 +221,14 @@ int main() {
             }
             
             // (3) adjust speed if necessary or desired
-            if ( need_speed_reduction )
+            static const double delta_speed_mps = 0.224;
+            if ( need_speed_reduction && planned_speed_mps >= delta_speed_mps )
             {
-              planned_speed_mps -= 0.224;
+              planned_speed_mps -= delta_speed_mps;
             }
-            else if ( planned_speed_mps < GOAL_SPEED_MPS )
+            else if ( planned_speed_mps + delta_speed_mps <= GOAL_SPEED_MPS )
             {
-              planned_speed_mps += 0.224;
+              planned_speed_mps += delta_speed_mps;
             }
             std::cout << "           Planned speed: v = " << planned_speed_mps << "\n";
 
