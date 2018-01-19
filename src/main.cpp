@@ -257,9 +257,12 @@ int main() {
             }
 
             // in Frenet add evenly 30m spaced points ahead of the starting reference
+            unsigned used_lane_idx(lane_idx);
             for ( int i=0; i<3; i++ )
             {
-              vector<double> next_wp = getXY(ref_s+(i+1)*30, (planned_lane_idx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              if      ( planned_lane_idx > used_lane_idx ) used_lane_idx++;
+              else if ( planned_lane_idx < used_lane_idx ) used_lane_idx--;
+              vector<double> next_wp = getXY(ref_s+(i+1)*30, (used_lane_idx+0.5)*LANE_WIDTH_M, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               ptsx.push_back(next_wp[0]);
               ptsy.push_back(next_wp[1]);
             }
