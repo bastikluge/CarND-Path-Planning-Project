@@ -1,16 +1,15 @@
 #include <fstream>
-#include <math.h>
 #include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
 #include <thread>
-#include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
-#include "math_helper.hpp"
 #include "constants.hpp"
+#include "math_helper.hpp"
+#include "trajectory_helper.hpp"
 
 using namespace std;
 
@@ -69,7 +68,7 @@ int main() {
   
   // Planned speed of vehicle
   double planned_speed_mps(0);
-  double planned_laneIdx(1);
+  unsigned planned_laneIdx(1);
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &planned_speed_mps, &planned_laneIdx](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -114,8 +113,8 @@ int main() {
             double safe_dist_m(0.5*planned_speed_mps*3.6);
 
             // Helper data for processing steps below
-            int laneIdx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
-            for ( int i=0; i<NUMBER_OF_LANES; i++ )
+            unsigned laneIdx((car_d <= 0.0) ? 0 : NUMBER_OF_LANES-1);
+            for ( unsigned i=0; i<NUMBER_OF_LANES; i++ )
             {
               if ( (i * LANE_WIDTH_M < car_d) && (car_d <= (i+1) * LANE_WIDTH_M) )
               {
@@ -130,30 +129,7 @@ int main() {
 
             // find ref_v to use
             double check_s( (prev_size > 0) ? end_path_s : car_s );
-            bool too_close(false);
-            for ( int idxCar=0; idxCar<sensor_fusion.size(); idxCar++ )
-            {
-              // check if car is in my lane
-              float other_d(sensor_fusion[idxCar][SFI_D]);
-              if ( (planned_laneIdx * LANE_WIDTH_M < other_d) && (other_d <= (planned_laneIdx+1) * LANE_WIDTH_M) )
-              {
-                double other_vx(sensor_fusion[idxCar][SFI_VX]);
-                double other_vy(sensor_fusion[idxCar][SFI_VY]);
-                double other_s (sensor_fusion[idxCar][SFI_S]);
-                double other_v(sqrt(other_vx*other_vx + other_vy*other_vy));
-
-                // check if car is in front and in safe distance
-                double other_check_s = other_s + prev_size*TIME_INCREMENT_S*other_v;
-                if ( (other_check_s > check_s) && (other_check_s - check_s < safe_dist_m) )
-                {
-                  std::cout << "           Car " << sensor_fusion[idxCar][SFI_ID] << " is too close!\n";
-                  // @todo do something fancy
-                  //planned_speed_mps = other_v;
-                  too_close = true;
-                  break;
-                }
-              }
-            }
+            bool too_close = !isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m, true, planned_laneIdx, sensor_fusion);
 
             // adjust speed and lane
             if ( too_close )
@@ -161,6 +137,7 @@ int main() {
               planned_speed_mps -= 0.224;
               if ( (laneIdx == planned_laneIdx) )
               {
+                // @todo: Check which lane is free to change
                 if ( planned_laneIdx > 0 )
                 {
                   planned_laneIdx--;

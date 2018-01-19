@@ -2,7 +2,6 @@
 #define MATH_HELPER_HPP
 
 #include <vector>
-#include <math.h>
 
 // For converting back and forth between radians and degrees.
 constexpr double pi();

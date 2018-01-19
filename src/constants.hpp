@@ -1,6 +1,8 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
+#include <vector>
+
 // The max s value before wrapping around the track back to 0
 extern const double MAX_S;
 
@@ -12,6 +14,10 @@ extern const double LANE_WIDTH_M;
 
 // The time increment in seconds within the car is controlled by one sent path
 extern const double TIME_INCREMENT_S;
+
+// Define sensor fusion types
+typedef std::vector<double>           SensorFusionData;
+typedef std::vector<SensorFusionData> SensorFusionCollection;
 
 // Enumeration of sensor fusion indices
 enum ESensorFusionIndices

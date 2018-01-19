@@ -1,6 +1,7 @@
 #include "math_helper.hpp"
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include <math.h>
 
 using namespace std;
 
