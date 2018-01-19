@@ -146,8 +146,12 @@ int main() {
             // (2) if current behavior is not safe, check if lane change helps
             if ( need_lane_adjustment )
             {
-              // collect possible (yet unchecked) alternative lanes
+              // pessimistic... ;-)
+              need_speed_reduction = true;
               std::vector<unsigned> lane_candidate_idx;
+
+              // collect possible (yet unchecked) adjacent alternative lanes
+              lane_candidate_idx.clear();
               if ( (0                <= int(lane_idx) - 1)
                 && (planned_lane_idx != lane_idx      - 1) )
               {
@@ -160,13 +164,39 @@ int main() {
               }
 
               // evaluate alternative lane candidates
-              need_speed_reduction = true;
-              planned_lane_idx     = lane_idx;
               for ( unsigned i=0; i<lane_candidate_idx.size(); i++ )
               {
                 if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,              sensor_fusion)
                   && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, lane_candidate_idx[i], sensor_fusion)
                   && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  lane_candidate_idx[i], sensor_fusion) )
+                {
+                  need_speed_reduction = false;
+                  planned_lane_idx     = lane_candidate_idx[i];
+                  break;
+                }
+              }
+
+              // collect possible (yet unchecked) distant alternative lanes
+              lane_candidate_idx.clear();
+              if ( (0                <= int(lane_idx) - 2)
+                && (planned_lane_idx != lane_idx      - 2) )
+              {
+                lane_candidate_idx.push_back(lane_idx - 2);
+              }
+              if ( (NUMBER_OF_LANES   > lane_idx + 2)
+                && (planned_lane_idx != lane_idx + 2) )
+              {
+                lane_candidate_idx.push_back(lane_idx + 2);
+              }
+
+              // evaluate alternative lane candidates
+              for ( unsigned i=0; i<lane_candidate_idx.size(); i++ )
+              {
+                if ( isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  lane_idx,                           sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, true,  (lane_idx+lane_candidate_idx[i])/2, sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, 0.5*safe_dist_m, false, lane_candidate_idx[i],              sensor_fusion)
+                  && isSafeLane(prev_size*TIME_INCREMENT_S, check_s, safe_dist_m,     true,  lane_candidate_idx[i],              sensor_fusion) )
                 {
                   need_speed_reduction = false;
                   planned_lane_idx     = lane_candidate_idx[i];
